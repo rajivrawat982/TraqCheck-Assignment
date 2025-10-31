@@ -1,0 +1,22 @@
+Flask==3.0.0
+Flask-CORS==4.0.0
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.23
+python-dotenv==1.0.0
+Werkzeug==3.0.1
+
+# Document parsing
+PyPDF2==3.0.1
+pdfplumber==0.10.3
+python-docx==1.1.0
+
+# AI/ML libraries
+openai==1.6.1
+anthropic==0.8.1
+langchain==0.1.0
+langchain-openai==0.0.2
+langchain-anthropic==0.0.1
+
+# Production server
+gunicorn==21.2.0
+psycopg2-binary==2.9.9
