@@ -1,13 +1,22 @@
+import os
+import logging
+        
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from models import db, Candidate
-import os
+from datetime import datetime
+
+from services.resume_parser import parse_resume
+from services.ai_agent import generate_and_send_document_request
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 candidates_bp = Blueprint('candidates', __name__)
 
 # Allowed file extensions for resume upload
 ALLOWED_RESUME_EXTENSIONS = {'pdf', 'docx'}
-
 
 def allowed_file(filename, allowed_extensions):
     """
@@ -59,30 +68,82 @@ def upload_resume():
         # Save the file
         file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
+        logger.info(f"✅ File saved to: {file_path}")
 
-        # TODO: Implement resume parsing logic
-        # from services.resume_parser import parse_resume
-        # extracted_data = parse_resume(file_path)
+        # Parse the resume using AI
+        try:
+            logger.info("Starting resume parsing...")
+            # Extract structured data from resume
+            extracted_data = parse_resume(file_path)
 
-        # For now, create a placeholder candidate
-        candidate = Candidate(
-            name='Placeholder Name',
-            email='placeholder@example.com',
-            resume_filename=filename,
-            resume_path=file_path,
-            extraction_status='pending'
-        )
+            logger.info("Creating candidate record in database...")
 
-        db.session.add(candidate)
-        db.session.commit()
+            # Create candidate with extracted data
+            candidate = Candidate(
+                name=extracted_data.get('name') or 'Unknown',
+                email=extracted_data.get('email'),
+                phone=extracted_data.get('phone'),
+                company=extracted_data.get('company'),
+                designation=extracted_data.get('designation'),
+                skills=extracted_data.get('skills', []),
+                experience_years=extracted_data.get('experience_years'),
+                education=extracted_data.get('education', []),
+                resume_filename=filename,
+                resume_path=file_path,
+                extraction_status='completed',
+                confidence_scores=extracted_data.get('confidence_scores', {})
+            )
 
-        return jsonify({
-            'message': 'Resume uploaded successfully',
-            'candidate': candidate.to_dict(include_details=True)
-        }), 201
+            db.session.add(candidate)
+            db.session.commit()
+
+            logger.info(f"Candidate created successfully (ID: {candidate.id})")
+            logger.info("="*60)
+            logger.info("Resume upload and parsing completed successfully!")
+            logger.info("="*60 + "\n")
+
+            return jsonify({
+                'message': 'Resume uploaded and parsed successfully',
+                'candidate': candidate.to_dict(include_details=True)
+            }), 201
+
+        except Exception as parsing_error:
+            logger.error(f"Parsing error: {str(parsing_error)}")
+            logger.warning("Saving candidate with 'failed' status...")
+
+            # If parsing fails, still save the candidate with minimal info
+            candidate = Candidate(
+                name='Parsing Failed',
+                resume_filename=filename,
+                resume_path=file_path,
+                extraction_status='failed'
+            )
+
+            db.session.add(candidate)
+            db.session.commit()
+
+            logger.info(f"Candidate saved with failed status (ID: {candidate.id})")
+            logger.info("="*60 + "\n")
+
+            return jsonify({
+                'message': 'Resume uploaded but parsing failed',
+                'error': str(parsing_error),
+                'candidate': candidate.to_dict(include_details=True)
+            }), 201
 
     except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
         db.session.rollback()
+        # Clean up uploaded file if database operation fails
+        if 'file_path' in locals() and os.path.exists(file_path):
+            try:
+                logger.info(f"Cleaning up file: {file_path}")
+                os.remove(file_path)
+            except:
+                pass
+
+        logger.info("="*60 + "\n")
+
         return jsonify({
             'error': 'Failed to process resume',
             'message': str(e)
@@ -146,13 +207,18 @@ def get_candidate(candidate_id):
 def request_documents(candidate_id):
     """
     POST /api/candidates/<id>/request-documents
-    AI agent generates personalized document request.
+    AI agent generates personalized document request and sends email.
+
+    This endpoint uses a LangGraph-based agent that:
+    1. Analyzes the candidate profile
+    2. Generates a personalized, culturally appropriate message
+    3. Sends the message via email
 
     Args:
         candidate_id: UUID of the candidate
 
     Returns:
-        JSON response with generated document request message
+        JSON response with generated document request message and email status
     """
     try:
         candidate = Candidate.query.get(candidate_id)
@@ -163,31 +229,55 @@ def request_documents(candidate_id):
                 'message': f'No candidate found with ID {candidate_id}'
             }), 404
 
-        # TODO: Implement AI agent logic
-        # from services.ai_agent import generate_document_request
-        # request_text = generate_document_request(candidate)
+        # Validate that candidate has an email address
+        if not candidate.email:
+            return jsonify({
+                'error': 'No email address',
+                'message': 'Candidate does not have an email address on file'
+            }), 400
 
-        # Placeholder response
-        request_text = f"Hi {candidate.name}, we need your PAN and Aadhaar documents for verification."
+        logger.info(f"Starting document request for candidate: {candidate.name}")
 
-        # Update candidate record
-        from datetime import datetime
+        # Use LangGraph agent to generate and send document request
+        result = generate_and_send_document_request(candidate)
+
+        if not result.get('success'):
+            logger.error(f"Agent workflow failed: {result.get('error')}")
+            return jsonify({
+                'error': 'Failed to generate document request',
+                'message': result.get('error', 'Unknown error occurred')
+            }), 500
+
+        # Update candidate record with the generated message
         candidate.document_request_sent = True
-        candidate.document_request_text = request_text
+        candidate.document_request_text = result.get('message', '')
         candidate.document_request_sent_at = datetime.utcnow()
 
         db.session.commit()
 
-        return jsonify({
-            'message': 'Document request generated successfully',
-            'request_text': request_text,
+        logger.info(f"Document request completed for: {candidate.name}")
+
+        # Prepare response
+        response_data = {
+            'message': 'Document request generated and sent successfully',
+            'request_text': result.get('message', ''),
             'request_sent_at': candidate.document_request_sent_at.isoformat(),
-            'request_method': 'email'
-        }), 200
+            'request_method': 'email',
+            'email_sent': result.get('email_sent', False),
+            'email_simulated': result.get('email_result', {}).get('simulated', False)
+        }
+
+        # Add error info if email failed but message was generated
+        if not result.get('email_sent') and result.get('error'):
+            response_data['email_error'] = result.get('error')
+            response_data['message'] = 'Document request generated but email sending failed'
+
+        return jsonify(response_data), 200
 
     except Exception as e:
+        logger.error(f"Request documents error: {str(e)}")
         db.session.rollback()
         return jsonify({
-            'error': 'Failed to generate document request',
+            'error': 'Failed to process document request',
             'message': str(e)
         }), 500
