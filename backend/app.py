@@ -12,7 +12,12 @@ app = Flask(__name__)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///traqcheck.db')
+
+# Fix for Render/Railway PostgreSQL URL (they use postgres:// but SQLAlchemy needs postgresql://)
+database_url = os.getenv('DATABASE_URL', 'sqlite:///traqcheck.db')
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_FILE_SIZE', 10485760))  # 10MB default
 
@@ -31,18 +36,6 @@ db.init_app(app)
 # Create database tables
 with app.app_context():
     db.create_all()
-
-
-# Health check endpoint
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """
-    Health check endpoint to verify the API is running.
-    """
-    return jsonify({
-        'status': 'healthy',
-        'message': 'TraqCheck API is running'
-    }), 200
 
 
 # Import and register blueprints
