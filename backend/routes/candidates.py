@@ -1,7 +1,7 @@
 import os
 import logging
-        
-from flask import Blueprint, request, jsonify, current_app
+
+from flask import Blueprint, request, jsonify, current_app, send_file
 from werkzeug.utils import secure_filename
 from models import db, Candidate
 from datetime import datetime
@@ -183,7 +183,7 @@ def get_candidate(candidate_id):
         candidate_id: UUID of the candidate
 
     Returns:
-        JSON response with detailed candidate information
+        JSON response with detailed candidate information including document URLs
     """
     try:
         candidate = Candidate.query.get(candidate_id)
@@ -194,7 +194,16 @@ def get_candidate(candidate_id):
                 'message': f'No candidate found with ID {candidate_id}'
             }), 404
 
-        return jsonify(candidate.to_dict(include_details=True)), 200
+        candidate_data = candidate.to_dict(include_details=True)
+
+        # Add document URLs if documents are uploaded
+        if candidate.pan_document_path:
+            candidate_data['pan_document_url'] = f'/candidates/{candidate_id}/documents/pan'
+
+        if candidate.aadhaar_document_path:
+            candidate_data['aadhaar_document_url'] = f'/candidates/{candidate_id}/documents/aadhaar'
+
+        return jsonify(candidate_data), 200
 
     except Exception as e:
         return jsonify({
@@ -279,5 +288,55 @@ def request_documents(candidate_id):
         db.session.rollback()
         return jsonify({
             'error': 'Failed to process document request',
+            'message': str(e)
+        }), 500
+
+
+@candidates_bp.route('/<candidate_id>/documents/<document_type>', methods=['GET'])
+def get_document(candidate_id, document_type):
+    """
+    GET /api/candidates/<id>/documents/<pan|aadhaar>
+    Serve uploaded document files for viewing/downloading.
+
+    Args:
+        candidate_id: UUID of the candidate
+        document_type: Type of document ('pan' or 'aadhaar')
+
+    Returns:
+        The document file
+    """
+    try:
+        candidate = Candidate.query.get(candidate_id)
+
+        if not candidate:
+            return jsonify({
+                'error': 'Candidate not found',
+                'message': f'No candidate found with ID {candidate_id}'
+            }), 404
+
+        # Get the appropriate document path
+        if document_type == 'pan':
+            document_path = candidate.pan_document_path
+        elif document_type == 'aadhaar':
+            document_path = candidate.aadhaar_document_path
+        else:
+            return jsonify({
+                'error': 'Invalid document type',
+                'message': 'Document type must be either "pan" or "aadhaar"'
+            }), 400
+
+        if not document_path or not os.path.exists(document_path):
+            return jsonify({
+                'error': 'Document not found',
+                'message': f'{document_type.upper()} document has not been uploaded yet'
+            }), 404
+
+        # Serve the file
+        return send_file(document_path, mimetype='application/octet-stream')
+
+    except Exception as e:
+        logger.error(f"Error serving document: {str(e)}")
+        return jsonify({
+            'error': 'Failed to retrieve document',
             'message': str(e)
         }), 500

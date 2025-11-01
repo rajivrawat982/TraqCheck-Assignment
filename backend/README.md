@@ -72,12 +72,7 @@ export FLASK_ENV=development
 flask run
 ```
 
-The API will be available at `http://localhost:5000`
-
 ## API Endpoints
-
-### Health Check
-- **GET** `/api/health` - Verify API is running
 
 ### Candidates
 - **POST** `/api/candidates/upload` - Upload and parse resume
@@ -93,33 +88,3 @@ The API will be available at `http://localhost:5000`
 The application uses SQLite by default for development. The database file (`traqcheck.db`) will be created automatically when you first run the application.
 
 For production, update the `DATABASE_URL` in `.env` to use PostgreSQL.
-
-## Next Steps
-
-1. Implement resume parsing logic in `services/resume_parser.py`
-2. Implement AI agent in `services/ai_agent.py`
-3. Add proper error handling and validation
-4. Write unit tests
-5. Set up production database (PostgreSQL)
-
-## Development Notes
-
-- The `uploads/` and `documents/` directories are created automatically
-- Database tables are created automatically on first run
-- Use the `.gitignore` to prevent committing sensitive files
-- All routes support CORS for frontend integration
-
-## Testing
-
-Test the API using curl or Postman:
-
-```bash
-# Health check
-curl http://localhost:5000/api/health
-
-# Upload resume (replace with actual file)
-curl -X POST -F "file=@resume.pdf" http://localhost:5000/api/candidates/upload
-
-# Get all candidates
-curl http://localhost:5000/api/candidates
-```
