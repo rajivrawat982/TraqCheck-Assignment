@@ -138,7 +138,7 @@ class DocumentRequestAgent:
         Uses the profile analysis to create a culturally appropriate,
         professional message requesting PAN and Aadhaar documents.
         """
-        logger.info(f"✍️  Generating document request message")
+        logger.info(f"Generating document request message")
 
         try:
             # Create message generation prompt
@@ -149,7 +149,7 @@ class DocumentRequestAgent:
             Candidate Information:
             - Name: {state['candidate_name']}
             - Email: {state['candidate_email']}
-            - Company: {state.get('candidate_company', 'our organization')}
+            - Current Company: {state.get('candidate_company', 'our organization')}
             - Designation: {state.get('candidate_designation', 'the position')}
 
             Profile Analysis:
@@ -163,9 +163,11 @@ class DocumentRequestAgent:
             3. Explain these are needed for identity verification and compliance
             4. Mention that scanned copies or clear photos are acceptable
             5. Be culturally sensitive and professional
-            6. Keep it concise (4-6 short paragraphs)
+            6. Keep it concise (3-4 short paragraphs)
             7. Include a polite closing
             8. DO NOT include a subject line (only the body)
+            9. DO NOT include sender name and organization
+            10 Add Signature line as "Best regards, HR Team, TraqCheck"
 
             Generate ONLY the email body text, without any subject line or metadata.
             """

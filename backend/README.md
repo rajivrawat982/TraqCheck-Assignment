@@ -1,6 +1,23 @@
 # TraqCheck Backend
 
-Flask-based backend for the TraqCheck AI-powered resume parser and document collection system.
+Flask-based backend with AI-powered resume parsing and intelligent document collection.
+
+## Tech Stack
+
+- **Flask** - Web framework
+- **SQLAlchemy** - ORM for database management
+- **LangGraph & LangChain** - AI agent orchestration
+- **OpenAI API** - GPT-4 for resume parsing and document requests
+- **PyPDF2 & python-docx** - Document parsing
+- **PostgreSQL** (production) / SQLite (development)
+
+## Features
+
+- **AI Resume Parser** - Extracts structured data from PDF/DOCX with confidence scores
+- **LangGraph Agent** - Multi-step autonomous agent for document collection
+- **Smart Extraction** - Identifies name, email, phone, company, designation, and skills
+- **Document Management** - Secure PAN and Aadhaar storage
+- **RESTful API** - Clean endpoints for frontend integration
 
 ## Project Structure
 
@@ -24,67 +41,44 @@ backend/
 └── .env                   # Environment variables (create from .env.example)
 ```
 
-## Setup Instructions
+## Quick Start
 
-### 1. Prerequisites
-
-- Python 3.8 or higher
-- pip (Python package manager)
-
-### 2. Create Virtual Environment
+### Setup
 
 ```bash
-# Create virtual environment
+# Create and activate virtual environment
 python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-```
-
-### 3. Install Dependencies
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### 4. Configure Environment Variables
-
-```bash
-# Copy the example environment file
+# Configure environment
 cp .env.example .env
+# Add your OPENAI_API_KEY to .env
 
-# Edit .env and add your API keys
-# At minimum, add one of the AI API keys (OpenAI, Anthropic, or OpenRouter)
-```
-
-### 5. Run the Application
-
-```bash
-# Development mode
+# Run application
 python app.py
-
-# Or using Flask CLI
-export FLASK_APP=app.py
-export FLASK_ENV=development
-flask run
 ```
+
+Server runs at `http://localhost:5000`
 
 ## API Endpoints
 
-### Candidates
-- **POST** `/api/candidates/upload` - Upload and parse resume
-- **GET** `/api/candidates` - List all candidates
-- **GET** `/api/candidates/<id>` - Get candidate details
-- **POST** `/api/candidates/<id>/request-documents` - Generate document request
+**Candidates**
+- `POST /api/candidates/upload` - Upload and parse resume
+- `GET /api/candidates` - List all candidates
+- `GET /api/candidates/<id>` - Get candidate details
+- `POST /api/candidates/<id>/request-documents` - Generate AI document request
 
-### Documents
-- **POST** `/api/candidates/<id>/submit-documents` - Submit PAN/Aadhaar documents
+**Documents**
+- `POST /api/candidates/<id>/submit-documents` - Submit PAN/Aadhaar documents
 
 ## Database
 
-The application uses SQLite by default for development. The database file (`traqcheck.db`) will be created automatically when you first run the application.
+SQLite for development (auto-created as `traqcheck.db`)
+PostgreSQL for production (configure `DATABASE_URL` in `.env`)
 
-For production, update the `DATABASE_URL` in `.env` to use PostgreSQL.
+## Deployment
+
+Deployed on **Render** with PostgreSQL database and environment variables configured in dashboard.

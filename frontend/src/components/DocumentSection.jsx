@@ -8,6 +8,8 @@ const DocumentSection = ({ candidateId, candidate, onDocumentsSubmitted }) => {
   const [error, setError] = useState(null);
   const [requestMessage, setRequestMessage] = useState(null);
   const [requestLoading, setRequestLoading] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+  const [requestSentAt, setRequestSentAt] = useState(null);
 
   const handleRequestDocuments = async () => {
     setRequestLoading(true);
@@ -30,6 +32,8 @@ const DocumentSection = ({ candidateId, candidate, onDocumentsSubmitted }) => {
 
       const data = await response.json();
       setRequestMessage(data.request_text);
+      setRequestSent(true);
+      setRequestSentAt(data.request_sent_at || new Date().toISOString());
     } catch (err) {
       setError(err.message);
     } finally {
@@ -108,28 +112,31 @@ const DocumentSection = ({ candidateId, candidate, onDocumentsSubmitted }) => {
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h4 className="text-lg font-semibold text-gray-900">Request Documents</h4>
-          {!candidate?.document_request_sent && (
+          {!candidate?.document_request_sent && !requestSent && (
             <button
               onClick={handleRequestDocuments}
               disabled={requestLoading}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {requestLoading ? 'Generating...' : 'Generate AI Request'}
+              {requestLoading ? 'Generating...' : 'Send Request'}
             </button>
           )}
         </div>
 
-        {candidate?.document_request_sent && (
+        {(candidate?.document_request_sent || requestSent) && (
           <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-sm text-green-800">
-              Document request sent on {new Date(candidate.document_request_sent_at).toLocaleString()}
+            <p className="text-sm text-green-800 font-medium">
+              ✓ Document request sent successfully!
+            </p>
+            <p className="text-sm text-green-700 mt-1">
+              Sent on {new Date(requestSentAt || candidate.document_request_sent_at).toLocaleString()}
             </p>
           </div>
         )}
 
         {requestMessage && (
           <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <p className="text-sm font-medium text-gray-700 mb-2">AI Generated Message:</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">Generated Message:</p>
             <p className="text-gray-800 whitespace-pre-wrap">{requestMessage}</p>
           </div>
         )}
@@ -140,11 +147,74 @@ const DocumentSection = ({ candidateId, candidate, onDocumentsSubmitted }) => {
         <h4 className="text-lg font-semibold text-gray-900 mb-4">Upload Documents</h4>
 
         {candidate?.documents_submitted ? (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-green-800 font-medium">Documents already submitted</p>
-            <p className="text-sm text-green-700 mt-1">
-              Submitted on {new Date(candidate.documents_submitted_at).toLocaleString()}
-            </p>
+          <div className="space-y-4">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-800 font-medium">Documents submitted</p>
+              <p className="text-sm text-green-700 mt-1">
+                Submitted on {new Date(candidate.documents_submitted_at).toLocaleString()}
+              </p>
+            </div>
+
+            {/* Display Uploaded Documents */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* PAN Document */}
+              {candidate.pan_document_url && (
+                <div className="border border-gray-200 rounded-lg p-4 flex flex-col">
+                  <h5 className="text-sm font-semibold text-gray-900 mb-3">PAN Card</h5>
+                  <div className="bg-gray-50 rounded-lg p-4 mb-4 flex-grow flex items-center justify-center">
+                    <img
+                      src={`${import.meta.env.VITE_API_BASE_URL}${candidate.pan_document_url}`}
+                      alt="PAN Card"
+                      className="w-full h-auto max-h-64 object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    />
+                    <div style={{ display: 'none' }} className="text-center text-gray-500 text-sm">
+                      Preview not available
+                    </div>
+                  </div>
+                  <a
+                    href={`${import.meta.env.VITE_API_BASE_URL}${candidate.pan_document_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors mt-auto"
+                  >
+                    View Full Document
+                  </a>
+                </div>
+              )}
+
+              {/* Aadhaar Document */}
+              {candidate.aadhaar_document_url && (
+                <div className="border border-gray-200 rounded-lg p-4 flex flex-col">
+                  <h5 className="text-sm font-semibold text-gray-900 mb-3">Aadhaar Card</h5>
+                  <div className="bg-gray-50 rounded-lg p-4 mb-4 flex-grow flex items-center justify-center">
+                    <img
+                      src={`${import.meta.env.VITE_API_BASE_URL}${candidate.aadhaar_document_url}`}
+                      alt="Aadhaar Card"
+                      className="w-full h-auto max-h-64 object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    />
+                    <div style={{ display: 'none' }} className="text-center text-gray-500 text-sm">
+                      Preview not available
+                    </div>
+                  </div>
+                  <a
+                    href={`${import.meta.env.VITE_API_BASE_URL}${candidate.aadhaar_document_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors mt-auto"
+                  >
+                    View Full Document
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
