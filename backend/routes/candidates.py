@@ -102,6 +102,14 @@ def upload_resume():
             logger.info("Resume upload and parsing completed successfully!")
             logger.info("="*60 + "\n")
 
+
+            # Trigger agent asking for documents
+            result = generate_and_send_document_request(candidate)
+            if result.get('success'):
+                logger.info(f"Document request sent to candidate: {candidate.email}")
+            else:
+                logger.warning(f"Document request failed: {result.get('error')}")
+
             return jsonify({
                 'message': 'Resume uploaded and parsed successfully',
                 'candidate': candidate.to_dict(include_details=True)

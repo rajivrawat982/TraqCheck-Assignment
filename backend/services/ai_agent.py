@@ -141,6 +141,10 @@ class DocumentRequestAgent:
         logger.info(f"Generating document request message")
 
         try:
+            # Get frontend base URL from environment
+            frontend_base_url = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
+            document_upload_url = f"{frontend_base_url}/documents/{state['candidate_id']}"
+
             # Create message generation prompt
             generation_prompt = f"""
             Based on the following candidate profile and analysis, create a personalized,
@@ -155,6 +159,9 @@ class DocumentRequestAgent:
             Profile Analysis:
             {state.get('profile_analysis', 'No analysis available')}
 
+            Document Upload Link:
+            {document_upload_url}
+
             Requirements for the message:
             1. Use a professional, warm tone suitable for Indian corporate context
             2. Request the following documents:
@@ -167,7 +174,10 @@ class DocumentRequestAgent:
             7. Include a polite closing
             8. DO NOT include a subject line (only the body)
             9. DO NOT include sender name and organization
-            10 Add Signature line as "Best regards, HR Team, TraqCheck"
+            10. Add Signature line as "Best regards, HR Team, TraqCheck"
+            11. IMPORTANT: Include the document upload link in the email body.
+                Make it prominent and easy to click.
+                Use text like "You can upload your documents using this secure link: {document_upload_url}"
 
             Generate ONLY the email body text, without any subject line or metadata.
             """
